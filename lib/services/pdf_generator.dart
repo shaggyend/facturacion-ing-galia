@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'package:facturacion_ing_galia/core/company_constants.dart';
+import 'package:facturacion_ing_galia/core/document_layout.dart';
 import 'package:facturacion_ing_galia/core/formatters.dart';
 import 'package:facturacion_ing_galia/models/budget_document.dart';
 
@@ -32,36 +33,6 @@ class _PdfResources {
 /// Generates US Letter PDFs faithfully replicating the Ingenieria Galia template.
 class BudgetPdfGenerator {
   BudgetPdfGenerator._();
-
-  static const double _marginLeft = 74.0;
-  static const double _marginRight = 68.0;
-  static const double _marginTop = 56.0;
-  static const double _marginBottom = 42.0;
-
-  // Table column geometry (sum = 470.0 pt = 612 - 74 - 68)
-  static const double _colQtyWidth = 36.0;
-  static const double _colDescWidth = 307.0;
-  static const double _colUnitIntWidth = 37.0;
-  static const double _colUnitDecWidth = 17.0;
-  static const double _colTotalIntWidth = 55.5;
-  static const double _colTotalDecWidth = 17.5;
-
-  static const double _colUnitWidth = _colUnitIntWidth + _colUnitDecWidth;
-  static const double _colTotalWidth = _colTotalIntWidth + _colTotalDecWidth;
-  static const double _tableWidth =
-      _colQtyWidth + _colDescWidth + _colUnitWidth + _colTotalWidth;
-
-  // Exact x-offsets for vertical rules across the 470 pt table.
-  static const double _xQtyRight = _colQtyWidth; // 36.0
-  static const double _xDescRight = _xQtyRight + _colDescWidth; // 343.0
-  static const double _xUnitDecimal = _xDescRight + _colUnitIntWidth; // 380.0
-  static const double _xUnitRight = _xDescRight + _colUnitWidth; // 397.0
-  static const double _xTotalDecimal = _xUnitRight + _colTotalIntWidth; // 452.5
-
-  static const double _lineThickness = 0.9;
-  static const double _tableHeaderHeight = 20.0;
-  static const double _tableBodyBaseHeight = 374.0;
-  static const double _totalRowHeight = 24.0;
 
   static final PdfColor _inkBlack = PdfColor.fromInt(0xFF1A1A1A);
   static final PdfColor _headerBlue = PdfColor.fromInt(0xFF2E3092);
@@ -123,10 +94,10 @@ class BudgetPdfGenerator {
         pw.Page(
           pageFormat: PdfPageFormat.letter,
           margin: const pw.EdgeInsets.fromLTRB(
-            _marginLeft,
-            _marginTop,
-            _marginRight,
-            _marginBottom,
+            DocumentLayout.marginLeft,
+            DocumentLayout.marginTop,
+            DocumentLayout.marginRight,
+            DocumentLayout.marginBottom,
           ),
           build: (context) => _buildSinglePage(doc, res, logoImage),
         ),
@@ -136,10 +107,10 @@ class BudgetPdfGenerator {
         pw.MultiPage(
           pageFormat: PdfPageFormat.letter,
           margin: const pw.EdgeInsets.fromLTRB(
-            _marginLeft,
-            _marginTop,
-            _marginRight,
-            _marginBottom,
+            DocumentLayout.marginLeft,
+            DocumentLayout.marginTop,
+            DocumentLayout.marginRight,
+            DocumentLayout.marginBottom,
           ),
           header: (context) => pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -150,7 +121,7 @@ class BudgetPdfGenerator {
                 _buildRecipientAndMetaRow(doc, res),
                 pw.SizedBox(height: 14),
               ],
-              _buildTableHeader(res),
+              _buildTableHeader(doc, res),
             ],
           ),
           footer: (context) => pw.Align(
@@ -170,7 +141,7 @@ class BudgetPdfGenerator {
 
   static bool _fitsSingleClassicPage(BudgetDocument doc) {
     if (doc.mode == WorkEntryMode.directTotal) {
-      final lineCount = _estimateWrappedLines(doc.workDetails, 54);
+      final lineCount = _estimateWrappedLines(doc.workDetails, 40);
       final titleOverhead = doc.workTitle.trim().isNotEmpty ? 42.0 : 12.0;
       return (titleOverhead + lineCount * 14.5) <= 264.0;
     }
@@ -178,7 +149,7 @@ class BudgetPdfGenerator {
     final titleOverhead = doc.workTitle.trim().isNotEmpty ? 28.0 : 10.0;
     double itemsHeight = titleOverhead;
     for (final item in doc.items) {
-      final descLines = math.max(1, _estimateWrappedLines(item.description, 52));
+      final descLines = math.max(1, _estimateWrappedLines(item.description, 38));
       itemsHeight += descLines * 13.5 + 6.0;
     }
     return itemsHeight <= 264.0;
@@ -206,7 +177,7 @@ class BudgetPdfGenerator {
         pw.SizedBox(height: 18),
         _buildRecipientAndMetaRow(doc, res),
         pw.SizedBox(height: 15),
-        _buildTableHeader(res),
+        _buildTableHeader(doc, res),
         _buildFixedBodyBox(doc, res),
         _buildTotalRow(doc, res),
         pw.Spacer(),
@@ -388,7 +359,10 @@ class BudgetPdfGenerator {
           constraints: const pw.BoxConstraints(minHeight: 78),
           padding: const pw.EdgeInsets.fromLTRB(14, 9, 14, 10),
           decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: _inkBlack, width: _lineThickness),
+            border: pw.Border.all(
+              color: _inkBlack,
+              width: DocumentLayout.lineThickness,
+            ),
             borderRadius: pw.BorderRadius.circular(24),
           ),
           child: pw.Column(
@@ -477,7 +451,7 @@ class BudgetPdfGenerator {
       left: x,
       top: 0,
       bottom: 0,
-      child: pw.Container(width: _lineThickness, color: _inkBlack),
+      child: pw.Container(width: DocumentLayout.lineThickness, color: _inkBlack),
     );
   }
 
@@ -487,11 +461,11 @@ class BudgetPdfGenerator {
       right: 0,
       top: top ? 0 : null,
       bottom: bottom ? 0 : null,
-      child: pw.Container(height: _lineThickness, color: _inkBlack),
+      child: pw.Container(height: DocumentLayout.lineThickness, color: _inkBlack),
     );
   }
 
-  static pw.Widget _buildTableHeader(_PdfResources res) {
+  static pw.Widget _buildTableHeader(BudgetDocument doc, _PdfResources res) {
     final headerStyle = pw.TextStyle(
       font: res.arimoRegular,
       fontSize: 6.0,
@@ -499,26 +473,31 @@ class BudgetPdfGenerator {
     );
 
     return pw.SizedBox(
-      width: _tableWidth,
-      height: _tableHeaderHeight,
+      width: DocumentLayout.tableWidth,
+      height: DocumentLayout.tableHeaderHeight,
       child: pw.Stack(
         children: [
           pw.Row(
             children: [
               pw.SizedBox(
-                width: _colQtyWidth,
-                height: _tableHeaderHeight,
-                child: pw.Center(child: pw.Text('CANTIDAD', style: headerStyle)),
+                width: DocumentLayout.colQtyWidth,
+                height: DocumentLayout.tableHeaderHeight,
+                child: pw.Center(
+                  child: pw.Text(
+                    'CANTIDAD',
+                    style: headerStyle.copyWith(fontSize: 5.5),
+                  ),
+                ),
               ),
               pw.SizedBox(
-                width: _colDescWidth,
-                height: _tableHeaderHeight,
+                width: DocumentLayout.colDescWidth,
+                height: DocumentLayout.tableHeaderHeight,
                 child:
                     pw.Center(child: pw.Text('DESCRIPCION', style: headerStyle)),
               ),
               pw.SizedBox(
-                width: _colUnitWidth,
-                height: _tableHeaderHeight,
+                width: DocumentLayout.colUnitWidth,
+                height: DocumentLayout.tableHeaderHeight,
                 child: pw.Center(
                   child: pw.Text(
                     'PRECIO UNITARIO',
@@ -528,19 +507,30 @@ class BudgetPdfGenerator {
                 ),
               ),
               pw.SizedBox(
-                width: _colTotalWidth,
-                height: _tableHeaderHeight,
+                width: DocumentLayout.colBsWidth,
+                height: DocumentLayout.tableHeaderHeight,
                 child: pw.Center(child: pw.Text('BOLIVARES', style: headerStyle)),
+              ),
+              pw.SizedBox(
+                width: DocumentLayout.colTotalWidth,
+                height: DocumentLayout.tableHeaderHeight,
+                child: pw.Center(
+                  child: pw.Text(
+                    'TOTAL (${doc.currency.symbol})',
+                    style: headerStyle,
+                  ),
+                ),
               ),
             ],
           ),
           _hRule(top: true),
           _hRule(bottom: true),
           _vRuleAt(0),
-          _vRuleAt(_xQtyRight),
-          _vRuleAt(_xDescRight),
-          _vRuleAt(_xUnitRight),
-          _vRuleAt(_tableWidth - _lineThickness),
+          _vRuleAt(DocumentLayout.xQtyRight),
+          _vRuleAt(DocumentLayout.xDescRight),
+          _vRuleAt(DocumentLayout.xUnitRight),
+          _vRuleAt(DocumentLayout.xBsRight),
+          _vRuleAt(DocumentLayout.tableWidth - DocumentLayout.lineThickness),
         ],
       ),
     );
@@ -551,8 +541,8 @@ class BudgetPdfGenerator {
     _PdfResources res,
   ) {
     return pw.SizedBox(
-      width: _tableWidth,
-      height: _tableBodyBaseHeight,
+      width: DocumentLayout.tableWidth,
+      height: DocumentLayout.tableBodyBaseHeight,
       child: pw.Stack(
         children: [
           pw.Column(
@@ -572,12 +562,14 @@ class BudgetPdfGenerator {
           ),
           _hRule(bottom: true),
           _vRuleAt(0),
-          _vRuleAt(_xQtyRight),
-          _vRuleAt(_xDescRight),
-          _vRuleAt(_xUnitDecimal),
-          _vRuleAt(_xUnitRight),
-          _vRuleAt(_xTotalDecimal),
-          _vRuleAt(_tableWidth - _lineThickness),
+          _vRuleAt(DocumentLayout.xQtyRight),
+          _vRuleAt(DocumentLayout.xDescRight),
+          _vRuleAt(DocumentLayout.xUnitDecimal),
+          _vRuleAt(DocumentLayout.xUnitRight),
+          _vRuleAt(DocumentLayout.xBsDecimal),
+          _vRuleAt(DocumentLayout.xBsRight),
+          _vRuleAt(DocumentLayout.xTotalDecimal),
+          _vRuleAt(DocumentLayout.tableWidth - DocumentLayout.lineThickness),
         ],
       ),
     );
@@ -590,9 +582,9 @@ class BudgetPdfGenerator {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.SizedBox(width: _colQtyWidth),
+        pw.SizedBox(width: DocumentLayout.colQtyWidth),
         pw.SizedBox(
-          width: _colDescWidth,
+          width: DocumentLayout.colDescWidth,
           child: pw.Padding(
             padding: const pw.EdgeInsets.symmetric(horizontal: 6),
             child: pw.Column(
@@ -636,8 +628,11 @@ class BudgetPdfGenerator {
         if (hasTitle)
           pw.Padding(
             padding: const pw.EdgeInsets.only(
-              left: _colQtyWidth + 6,
-              right: _colUnitWidth + _colTotalWidth + 6,
+              left: DocumentLayout.colQtyWidth + 6,
+              right: DocumentLayout.colUnitWidth +
+                  DocumentLayout.colBsWidth +
+                  DocumentLayout.colTotalWidth +
+                  6,
               bottom: 10,
             ),
             child: pw.Text(
@@ -656,6 +651,9 @@ class BudgetPdfGenerator {
 
   static pw.Widget _buildItemRow(BudgetItem item, _PdfResources res) {
     final unit = DocumentFormatters.splitCurrencyAmount(item.unitPrice);
+    final bsSplit = item.bolivaresAmount != null
+        ? DocumentFormatters.splitCurrencyAmount(item.bolivaresAmount!)
+        : null;
     final subtotal = DocumentFormatters.splitCurrencyAmount(item.subtotal);
     final rowStyle = pw.TextStyle(
       font: res.arimoRegular,
@@ -669,7 +667,7 @@ class BudgetPdfGenerator {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.SizedBox(
-            width: _colQtyWidth,
+            width: DocumentLayout.colQtyWidth,
             child: pw.Text(
               DocumentFormatters.formatQuantity(item.quantity),
               textAlign: pw.TextAlign.center,
@@ -677,14 +675,14 @@ class BudgetPdfGenerator {
             ),
           ),
           pw.SizedBox(
-            width: _colDescWidth,
+            width: DocumentLayout.colDescWidth,
             child: pw.Padding(
               padding: const pw.EdgeInsets.symmetric(horizontal: 6),
               child: pw.Text(item.description, style: rowStyle),
             ),
           ),
           pw.SizedBox(
-            width: _colUnitIntWidth,
+            width: DocumentLayout.colUnitIntWidth,
             child: pw.Padding(
               padding: const pw.EdgeInsets.only(right: 3),
               child: pw.Text(
@@ -695,7 +693,7 @@ class BudgetPdfGenerator {
             ),
           ),
           pw.SizedBox(
-            width: _colUnitDecWidth,
+            width: DocumentLayout.colUnitDecWidth,
             child: pw.Text(
               unit.decimalPart,
               textAlign: pw.TextAlign.center,
@@ -703,7 +701,30 @@ class BudgetPdfGenerator {
             ),
           ),
           pw.SizedBox(
-            width: _colTotalIntWidth,
+            width: DocumentLayout.colBsIntWidth,
+            child: bsSplit == null
+                ? null
+                : pw.Padding(
+                    padding: const pw.EdgeInsets.only(right: 3),
+                    child: pw.Text(
+                      bsSplit.integerPart,
+                      textAlign: pw.TextAlign.right,
+                      style: rowStyle,
+                    ),
+                  ),
+          ),
+          pw.SizedBox(
+            width: DocumentLayout.colBsDecWidth,
+            child: bsSplit == null
+                ? null
+                : pw.Text(
+                    bsSplit.decimalPart,
+                    textAlign: pw.TextAlign.center,
+                    style: rowStyle,
+                  ),
+          ),
+          pw.SizedBox(
+            width: DocumentLayout.colTotalIntWidth,
             child: pw.Padding(
               padding: const pw.EdgeInsets.only(right: 3),
               child: pw.Text(
@@ -714,7 +735,7 @@ class BudgetPdfGenerator {
             ),
           ),
           pw.SizedBox(
-            width: _colTotalDecWidth,
+            width: DocumentLayout.colTotalDecWidth,
             child: pw.Text(
               subtotal.decimalPart,
               textAlign: pw.TextAlign.center,
@@ -729,7 +750,7 @@ class BudgetPdfGenerator {
   static pw.Widget _buildBottomTerms(BudgetDocument doc, _PdfResources res) {
     final termStyle = pw.TextStyle(
       font: res.tinosBoldItalic,
-      fontSize: 10.0,
+      fontSize: 9.6,
       color: _inkBlack,
     );
     final underlinedTermStyle = termStyle.copyWith(
@@ -738,14 +759,16 @@ class BudgetPdfGenerator {
 
     return pw.Padding(
       padding: const pw.EdgeInsets.only(
-        left: _colQtyWidth,
-        right: _colUnitWidth + _colTotalWidth,
+        left: DocumentLayout.colQtyWidth,
+        right: DocumentLayout.colUnitWidth +
+            DocumentLayout.colBsWidth +
+            DocumentLayout.colTotalWidth,
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Padding(
-            padding: const pw.EdgeInsets.only(left: 64, right: 6),
+            padding: const pw.EdgeInsets.only(left: 24, right: 6),
             child: pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
@@ -762,7 +785,7 @@ class BudgetPdfGenerator {
           ),
           pw.SizedBox(height: 11),
           pw.Padding(
-            padding: const pw.EdgeInsets.only(left: 26, right: 6),
+            padding: const pw.EdgeInsets.only(left: 10, right: 6),
             child: pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
@@ -774,14 +797,16 @@ class BudgetPdfGenerator {
               ],
             ),
           ),
-          pw.SizedBox(height: 16),
-          pw.Padding(
-            padding: const pw.EdgeInsets.only(left: 78, right: 6),
-            child: pw.Text(
-              CompanyConstants.taxNote,
-              style: termStyle,
+          if (doc.includeTaxNote) ...[
+            pw.SizedBox(height: 16),
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(left: 34, right: 6),
+              child: pw.Text(
+                CompanyConstants.taxNote,
+                style: termStyle,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -789,6 +814,9 @@ class BudgetPdfGenerator {
 
   static pw.Widget _buildTotalRow(BudgetDocument doc, _PdfResources res) {
     final splitTotal = DocumentFormatters.splitCurrencyAmount(doc.effectiveTotal);
+    final bsTotal = doc.effectiveBolivaresTotal;
+    final splitBs =
+        bsTotal != null ? DocumentFormatters.splitCurrencyAmount(bsTotal) : null;
     final totalStyle = pw.TextStyle(
       font: res.arimoRegular,
       fontSize: 10.4,
@@ -796,45 +824,80 @@ class BudgetPdfGenerator {
     );
 
     return pw.SizedBox(
-      width: _tableWidth,
-      height: _totalRowHeight,
+      width: DocumentLayout.tableWidth,
+      height: DocumentLayout.totalRowHeight,
       child: pw.Stack(
         children: [
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
               pw.SizedBox(
-                width: _xUnitRight,
-                height: _totalRowHeight,
+                width: DocumentLayout.xUnitRight,
+                height: DocumentLayout.totalRowHeight,
+                child: pw.Align(
+                  alignment: pw.Alignment.centerRight,
+                  child: pw.Padding(
+                    padding: const pw.EdgeInsets.only(right: 12),
+                    child: pw.Text('TOTAL', style: totalStyle),
+                  ),
+                ),
+              ),
+              pw.SizedBox(
+                width: DocumentLayout.colBsIntWidth,
+                height: DocumentLayout.totalRowHeight,
+                child: splitBs == null
+                    ? null
+                    : pw.Align(
+                        alignment: pw.Alignment.centerRight,
+                        child: pw.Padding(
+                          padding: const pw.EdgeInsets.only(left: 3, right: 3),
+                          child: pw.FittedBox(
+                            fit: pw.BoxFit.scaleDown,
+                            child: pw.Text(splitBs.integerPart, style: totalStyle),
+                          ),
+                        ),
+                      ),
+              ),
+              pw.SizedBox(
+                width: DocumentLayout.colBsDecWidth,
+                height: DocumentLayout.totalRowHeight,
+                child: splitBs == null
+                    ? null
+                    : pw.Center(
+                        child: pw.Text(splitBs.decimalPart, style: totalStyle),
+                      ),
+              ),
+              pw.SizedBox(
+                width: DocumentLayout.colTotalIntWidth,
+                height: DocumentLayout.totalRowHeight,
                 child: pw.Padding(
-                  padding: const pw.EdgeInsets.only(right: 18),
+                  padding: const pw.EdgeInsets.only(left: 4, right: 3),
                   child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.end,
                     children: [
-                      pw.Text('TOTAL', style: totalStyle),
-                      pw.SizedBox(width: 14),
                       pw.Text(
                         doc.currency.symbol,
-                        style: totalStyle.copyWith(fontSize: 11.2),
+                        style: totalStyle.copyWith(fontSize: 10.8),
+                      ),
+                      pw.SizedBox(width: 2),
+                      pw.Expanded(
+                        child: pw.Align(
+                          alignment: pw.Alignment.centerRight,
+                          child: pw.FittedBox(
+                            fit: pw.BoxFit.scaleDown,
+                            child: pw.Text(
+                              splitTotal.integerPart,
+                              style: totalStyle,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
               pw.SizedBox(
-                width: _colTotalIntWidth,
-                height: _totalRowHeight,
-                child: pw.Align(
-                  alignment: pw.Alignment.centerRight,
-                  child: pw.Padding(
-                    padding: const pw.EdgeInsets.only(right: 3),
-                    child: pw.Text(splitTotal.integerPart, style: totalStyle),
-                  ),
-                ),
-              ),
-              pw.SizedBox(
-                width: _colTotalDecWidth,
-                height: _totalRowHeight,
+                width: DocumentLayout.colTotalDecWidth,
+                height: DocumentLayout.totalRowHeight,
                 child: pw.Center(
                   child: pw.Text(splitTotal.decimalPart, style: totalStyle),
                 ),
@@ -842,14 +905,19 @@ class BudgetPdfGenerator {
             ],
           ),
           pw.Positioned(
-            left: _xUnitRight,
+            left: DocumentLayout.xUnitRight,
             right: 0,
             bottom: 0,
-            child: pw.Container(height: _lineThickness, color: _inkBlack),
+            child: pw.Container(
+              height: DocumentLayout.lineThickness,
+              color: _inkBlack,
+            ),
           ),
-          _vRuleAt(_xUnitRight),
-          _vRuleAt(_xTotalDecimal),
-          _vRuleAt(_tableWidth - _lineThickness),
+          _vRuleAt(DocumentLayout.xUnitRight),
+          _vRuleAt(DocumentLayout.xBsDecimal),
+          _vRuleAt(DocumentLayout.xBsRight),
+          _vRuleAt(DocumentLayout.xTotalDecimal),
+          _vRuleAt(DocumentLayout.tableWidth - DocumentLayout.lineThickness),
         ],
       ),
     );
@@ -908,18 +976,20 @@ class BudgetPdfGenerator {
 
     pw.Widget wrapWithColumnRules(pw.Widget inner, {bool bottomBorder = false}) {
       return pw.SizedBox(
-        width: _tableWidth,
+        width: DocumentLayout.tableWidth,
         child: pw.Stack(
           children: [
             inner,
             if (bottomBorder) _hRule(bottom: true),
             _vRuleAt(0),
-            _vRuleAt(_xQtyRight),
-            _vRuleAt(_xDescRight),
-            _vRuleAt(_xUnitDecimal),
-            _vRuleAt(_xUnitRight),
-            _vRuleAt(_xTotalDecimal),
-            _vRuleAt(_tableWidth - _lineThickness),
+            _vRuleAt(DocumentLayout.xQtyRight),
+            _vRuleAt(DocumentLayout.xDescRight),
+            _vRuleAt(DocumentLayout.xUnitDecimal),
+            _vRuleAt(DocumentLayout.xUnitRight),
+            _vRuleAt(DocumentLayout.xBsDecimal),
+            _vRuleAt(DocumentLayout.xBsRight),
+            _vRuleAt(DocumentLayout.xTotalDecimal),
+            _vRuleAt(DocumentLayout.tableWidth - DocumentLayout.lineThickness),
           ],
         ),
       );
@@ -931,8 +1001,11 @@ class BudgetPdfGenerator {
           wrapWithColumnRules(
             pw.Padding(
               padding: const pw.EdgeInsets.only(
-                left: _colQtyWidth + 6,
-                right: _colUnitWidth + _colTotalWidth + 6,
+                left: DocumentLayout.colQtyWidth + 6,
+                right: DocumentLayout.colUnitWidth +
+                    DocumentLayout.colBsWidth +
+                    DocumentLayout.colTotalWidth +
+                    6,
                 top: 6,
                 bottom: 10,
               ),
@@ -953,8 +1026,11 @@ class BudgetPdfGenerator {
           wrapWithColumnRules(
             pw.Padding(
               padding: const pw.EdgeInsets.only(
-                left: _colQtyWidth + 6,
-                right: _colUnitWidth + _colTotalWidth + 6,
+                left: DocumentLayout.colQtyWidth + 6,
+                right: DocumentLayout.colUnitWidth +
+                    DocumentLayout.colBsWidth +
+                    DocumentLayout.colTotalWidth +
+                    6,
                 top: 2,
                 bottom: 2,
               ),
@@ -976,8 +1052,11 @@ class BudgetPdfGenerator {
           wrapWithColumnRules(
             pw.Padding(
               padding: const pw.EdgeInsets.only(
-                left: _colQtyWidth + 6,
-                right: _colUnitWidth + _colTotalWidth + 6,
+                left: DocumentLayout.colQtyWidth + 6,
+                right: DocumentLayout.colUnitWidth +
+                    DocumentLayout.colBsWidth +
+                    DocumentLayout.colTotalWidth +
+                    6,
                 top: 6,
                 bottom: 8,
               ),

@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:facturacion_ing_galia/core/company_constants.dart';
+import 'package:facturacion_ing_galia/core/document_layout.dart';
 import 'package:facturacion_ing_galia/core/formatters.dart';
 import 'package:facturacion_ing_galia/models/budget_document.dart';
 
@@ -46,7 +47,12 @@ class DocumentPreview extends StatelessWidget {
                   ],
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(74, 56, 68, 42),
+                  padding: const EdgeInsets.fromLTRB(
+                    DocumentLayout.marginLeft,
+                    DocumentLayout.marginTop,
+                    DocumentLayout.marginRight,
+                    DocumentLayout.marginBottom,
+                  ),
                   child: _DocumentSheetBody(document: document),
                 ),
               ),
@@ -62,29 +68,6 @@ class _DocumentSheetBody extends StatelessWidget {
   const _DocumentSheetBody({required this.document});
 
   final BudgetDocument document;
-
-  static const double _colQtyWidth = 36.0;
-  static const double _colDescWidth = 307.0;
-  static const double _colUnitIntWidth = 37.0;
-  static const double _colUnitDecWidth = 17.0;
-  static const double _colTotalIntWidth = 55.5;
-  static const double _colTotalDecWidth = 17.5;
-
-  static const double _colUnitWidth = _colUnitIntWidth + _colUnitDecWidth;
-  static const double _colTotalWidth = _colTotalIntWidth + _colTotalDecWidth;
-  static const double _tableWidth =
-      _colQtyWidth + _colDescWidth + _colUnitWidth + _colTotalWidth;
-
-  static const double _xQtyRight = _colQtyWidth;
-  static const double _xDescRight = _xQtyRight + _colDescWidth;
-  static const double _xUnitDecimal = _xDescRight + _colUnitIntWidth;
-  static const double _xUnitRight = _xDescRight + _colUnitWidth;
-  static const double _xTotalDecimal = _xUnitRight + _colTotalIntWidth;
-
-  static const double _lineThickness = 0.9;
-  static const double _tableHeaderHeight = 20.0;
-  static const double _tableBodyBaseHeight = 374.0;
-  static const double _totalRowHeight = 24.0;
 
   static const TextStyle _tinosBold = TextStyle(
     fontFamily: 'Tinos',
@@ -108,7 +91,7 @@ class _DocumentSheetBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: _tableWidth,
+      width: DocumentLayout.tableWidth,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -272,7 +255,7 @@ class _DocumentSheetBody extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border.all(
               color: CompanyConstants.inkBlack,
-              width: _lineThickness,
+              width: DocumentLayout.lineThickness,
             ),
             borderRadius: BorderRadius.circular(24),
           ),
@@ -364,7 +347,10 @@ class _DocumentSheetBody extends StatelessWidget {
       left: x,
       top: 0,
       bottom: 0,
-      child: Container(width: _lineThickness, color: CompanyConstants.inkBlack),
+      child: Container(
+        width: DocumentLayout.lineThickness,
+        color: CompanyConstants.inkBlack,
+      ),
     );
   }
 
@@ -374,32 +360,40 @@ class _DocumentSheetBody extends StatelessWidget {
       right: 0,
       top: top ? 0 : null,
       bottom: bottom ? 0 : null,
-      child: Container(height: _lineThickness, color: CompanyConstants.inkBlack),
+      child: Container(
+        height: DocumentLayout.lineThickness,
+        color: CompanyConstants.inkBlack,
+      ),
     );
   }
 
   Widget _buildTableHeader() {
     final headerStyle = _arimoRegular.copyWith(fontSize: 6.0, height: 1.1);
     return SizedBox(
-      width: _tableWidth,
-      height: _tableHeaderHeight,
+      width: DocumentLayout.tableWidth,
+      height: DocumentLayout.tableHeaderHeight,
       child: Stack(
         children: [
           Row(
             children: [
               SizedBox(
-                width: _colQtyWidth,
-                height: _tableHeaderHeight,
-                child: Center(child: Text('CANTIDAD', style: headerStyle)),
+                width: DocumentLayout.colQtyWidth,
+                height: DocumentLayout.tableHeaderHeight,
+                child: Center(
+                  child: Text(
+                    'CANTIDAD',
+                    style: headerStyle.copyWith(fontSize: 5.5),
+                  ),
+                ),
               ),
               SizedBox(
-                width: _colDescWidth,
-                height: _tableHeaderHeight,
+                width: DocumentLayout.colDescWidth,
+                height: DocumentLayout.tableHeaderHeight,
                 child: Center(child: Text('DESCRIPCION', style: headerStyle)),
               ),
               SizedBox(
-                width: _colUnitWidth,
-                height: _tableHeaderHeight,
+                width: DocumentLayout.colUnitWidth,
+                height: DocumentLayout.tableHeaderHeight,
                 child: Center(
                   child: Text(
                     'PRECIO UNITARIO',
@@ -409,19 +403,30 @@ class _DocumentSheetBody extends StatelessWidget {
                 ),
               ),
               SizedBox(
-                width: _colTotalWidth,
-                height: _tableHeaderHeight,
+                width: DocumentLayout.colBsWidth,
+                height: DocumentLayout.tableHeaderHeight,
                 child: Center(child: Text('BOLIVARES', style: headerStyle)),
+              ),
+              SizedBox(
+                width: DocumentLayout.colTotalWidth,
+                height: DocumentLayout.tableHeaderHeight,
+                child: Center(
+                  child: Text(
+                    'TOTAL (${document.currency.symbol})',
+                    style: headerStyle,
+                  ),
+                ),
               ),
             ],
           ),
           _hRule(top: true),
           _hRule(bottom: true),
           _vRuleAt(0),
-          _vRuleAt(_xQtyRight),
-          _vRuleAt(_xDescRight),
-          _vRuleAt(_xUnitRight),
-          _vRuleAt(_tableWidth - _lineThickness),
+          _vRuleAt(DocumentLayout.xQtyRight),
+          _vRuleAt(DocumentLayout.xDescRight),
+          _vRuleAt(DocumentLayout.xUnitRight),
+          _vRuleAt(DocumentLayout.xBsRight),
+          _vRuleAt(DocumentLayout.tableWidth - DocumentLayout.lineThickness),
         ],
       ),
     );
@@ -429,10 +434,12 @@ class _DocumentSheetBody extends StatelessWidget {
 
   Widget _buildTableBody() {
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: _tableBodyBaseHeight),
+      constraints: const BoxConstraints(
+        minHeight: DocumentLayout.tableBodyBaseHeight,
+      ),
       child: IntrinsicHeight(
         child: SizedBox(
-          width: _tableWidth,
+          width: DocumentLayout.tableWidth,
           child: Stack(
             children: [
               Column(
@@ -457,12 +464,14 @@ class _DocumentSheetBody extends StatelessWidget {
               ),
               _hRule(bottom: true),
               _vRuleAt(0),
-              _vRuleAt(_xQtyRight),
-              _vRuleAt(_xDescRight),
-              _vRuleAt(_xUnitDecimal),
-              _vRuleAt(_xUnitRight),
-              _vRuleAt(_xTotalDecimal),
-              _vRuleAt(_tableWidth - _lineThickness),
+              _vRuleAt(DocumentLayout.xQtyRight),
+              _vRuleAt(DocumentLayout.xDescRight),
+              _vRuleAt(DocumentLayout.xUnitDecimal),
+              _vRuleAt(DocumentLayout.xUnitRight),
+              _vRuleAt(DocumentLayout.xBsDecimal),
+              _vRuleAt(DocumentLayout.xBsRight),
+              _vRuleAt(DocumentLayout.xTotalDecimal),
+              _vRuleAt(DocumentLayout.tableWidth - DocumentLayout.lineThickness),
             ],
           ),
         ),
@@ -477,9 +486,9 @@ class _DocumentSheetBody extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(width: _colQtyWidth),
+        const SizedBox(width: DocumentLayout.colQtyWidth),
         SizedBox(
-          width: _colDescWidth,
+          width: DocumentLayout.colDescWidth,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
             child: Column(
@@ -519,8 +528,11 @@ class _DocumentSheetBody extends StatelessWidget {
         if (hasTitle)
           Padding(
             padding: const EdgeInsets.only(
-              left: _colQtyWidth + 6,
-              right: _colUnitWidth + _colTotalWidth + 6,
+              left: DocumentLayout.colQtyWidth + 6,
+              right: DocumentLayout.colUnitWidth +
+                  DocumentLayout.colBsWidth +
+                  DocumentLayout.colTotalWidth +
+                  6,
               bottom: 10,
             ),
             child: Text(
@@ -535,6 +547,9 @@ class _DocumentSheetBody extends StatelessWidget {
 
   Widget _buildItemRow(BudgetItem item) {
     final unit = DocumentFormatters.splitCurrencyAmount(item.unitPrice);
+    final bsSplit = item.bolivaresAmount != null
+        ? DocumentFormatters.splitCurrencyAmount(item.bolivaresAmount!)
+        : null;
     final subtotal = DocumentFormatters.splitCurrencyAmount(item.subtotal);
     final rowStyle = _arimoRegular.copyWith(fontSize: 9.3, height: 1.25);
 
@@ -544,7 +559,7 @@ class _DocumentSheetBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: _colQtyWidth,
+            width: DocumentLayout.colQtyWidth,
             child: Text(
               DocumentFormatters.formatQuantity(item.quantity),
               textAlign: TextAlign.center,
@@ -552,14 +567,14 @@ class _DocumentSheetBody extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: _colDescWidth,
+            width: DocumentLayout.colDescWidth,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: Text(item.description, style: rowStyle),
             ),
           ),
           SizedBox(
-            width: _colUnitIntWidth,
+            width: DocumentLayout.colUnitIntWidth,
             child: Padding(
               padding: const EdgeInsets.only(right: 3),
               child: Text(
@@ -570,7 +585,7 @@ class _DocumentSheetBody extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: _colUnitDecWidth,
+            width: DocumentLayout.colUnitDecWidth,
             child: Text(
               unit.decimalPart,
               textAlign: TextAlign.center,
@@ -578,7 +593,30 @@ class _DocumentSheetBody extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: _colTotalIntWidth,
+            width: DocumentLayout.colBsIntWidth,
+            child: bsSplit == null
+                ? null
+                : Padding(
+                    padding: const EdgeInsets.only(right: 3),
+                    child: Text(
+                      bsSplit.integerPart,
+                      textAlign: TextAlign.right,
+                      style: rowStyle,
+                    ),
+                  ),
+          ),
+          SizedBox(
+            width: DocumentLayout.colBsDecWidth,
+            child: bsSplit == null
+                ? null
+                : Text(
+                    bsSplit.decimalPart,
+                    textAlign: TextAlign.center,
+                    style: rowStyle,
+                  ),
+          ),
+          SizedBox(
+            width: DocumentLayout.colTotalIntWidth,
             child: Padding(
               padding: const EdgeInsets.only(right: 3),
               child: Text(
@@ -589,7 +627,7 @@ class _DocumentSheetBody extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: _colTotalDecWidth,
+            width: DocumentLayout.colTotalDecWidth,
             child: Text(
               subtotal.decimalPart,
               textAlign: TextAlign.center,
@@ -602,7 +640,7 @@ class _DocumentSheetBody extends StatelessWidget {
   }
 
   Widget _buildBottomTerms() {
-    final termStyle = _tinosBoldItalic.copyWith(fontSize: 10.0, height: 1.22);
+    final termStyle = _tinosBoldItalic.copyWith(fontSize: 9.6, height: 1.22);
     final underlinedStyle = termStyle.copyWith(
       decoration: TextDecoration.underline,
       decorationColor: CompanyConstants.inkBlack,
@@ -610,14 +648,16 @@ class _DocumentSheetBody extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(
-        left: _colQtyWidth,
-        right: _colUnitWidth + _colTotalWidth,
+        left: DocumentLayout.colQtyWidth,
+        right: DocumentLayout.colUnitWidth +
+            DocumentLayout.colBsWidth +
+            DocumentLayout.colTotalWidth,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 64, right: 6),
+            padding: const EdgeInsets.only(left: 24, right: 6),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -634,7 +674,7 @@ class _DocumentSheetBody extends StatelessWidget {
           ),
           const SizedBox(height: 11),
           Padding(
-            padding: const EdgeInsets.only(left: 26, right: 6),
+            padding: const EdgeInsets.only(left: 10, right: 6),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -646,11 +686,13 @@ class _DocumentSheetBody extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.only(left: 78, right: 6),
-            child: Text(CompanyConstants.taxNote, style: termStyle),
-          ),
+          if (document.includeTaxNote) ...[
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.only(left: 34, right: 6),
+              child: Text(CompanyConstants.taxNote, style: termStyle),
+            ),
+          ],
         ],
       ),
     );
@@ -659,48 +701,83 @@ class _DocumentSheetBody extends StatelessWidget {
   Widget _buildTotalRow() {
     final splitTotal =
         DocumentFormatters.splitCurrencyAmount(document.effectiveTotal);
+    final bsTotal = document.effectiveBolivaresTotal;
+    final splitBs =
+        bsTotal != null ? DocumentFormatters.splitCurrencyAmount(bsTotal) : null;
     final totalStyle = _arimoRegular.copyWith(fontSize: 10.4, height: 1.1);
 
     return SizedBox(
-      width: _tableWidth,
-      height: _totalRowHeight,
+      width: DocumentLayout.tableWidth,
+      height: DocumentLayout.totalRowHeight,
       child: Stack(
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
-                width: _xUnitRight,
-                height: _totalRowHeight,
+                width: DocumentLayout.xUnitRight,
+                height: DocumentLayout.totalRowHeight,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Text('TOTAL', style: totalStyle),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: DocumentLayout.colBsIntWidth,
+                height: DocumentLayout.totalRowHeight,
+                child: splitBs == null
+                    ? null
+                    : Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 3, right: 3),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(splitBs.integerPart, style: totalStyle),
+                          ),
+                        ),
+                      ),
+              ),
+              SizedBox(
+                width: DocumentLayout.colBsDecWidth,
+                height: DocumentLayout.totalRowHeight,
+                child: splitBs == null
+                    ? null
+                    : Center(
+                        child: Text(splitBs.decimalPart, style: totalStyle),
+                      ),
+              ),
+              SizedBox(
+                width: DocumentLayout.colTotalIntWidth,
+                height: DocumentLayout.totalRowHeight,
                 child: Padding(
-                  padding: const EdgeInsets.only(right: 18),
+                  padding: const EdgeInsets.only(left: 4, right: 3),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text('TOTAL', style: totalStyle),
-                      const SizedBox(width: 14),
                       Text(
                         document.currency.symbol,
-                        style: totalStyle.copyWith(fontSize: 11.2),
+                        style: totalStyle.copyWith(fontSize: 10.8),
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(splitTotal.integerPart, style: totalStyle),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
               SizedBox(
-                width: _colTotalIntWidth,
-                height: _totalRowHeight,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 3),
-                    child: Text(splitTotal.integerPart, style: totalStyle),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: _colTotalDecWidth,
-                height: _totalRowHeight,
+                width: DocumentLayout.colTotalDecWidth,
+                height: DocumentLayout.totalRowHeight,
                 child: Center(
                   child: Text(splitTotal.decimalPart, style: totalStyle),
                 ),
@@ -708,17 +785,19 @@ class _DocumentSheetBody extends StatelessWidget {
             ],
           ),
           Positioned(
-            left: _xUnitRight,
+            left: DocumentLayout.xUnitRight,
             right: 0,
             bottom: 0,
             child: Container(
-              height: _lineThickness,
+              height: DocumentLayout.lineThickness,
               color: CompanyConstants.inkBlack,
             ),
           ),
-          _vRuleAt(_xUnitRight),
-          _vRuleAt(_xTotalDecimal),
-          _vRuleAt(_tableWidth - _lineThickness),
+          _vRuleAt(DocumentLayout.xUnitRight),
+          _vRuleAt(DocumentLayout.xBsDecimal),
+          _vRuleAt(DocumentLayout.xBsRight),
+          _vRuleAt(DocumentLayout.xTotalDecimal),
+          _vRuleAt(DocumentLayout.tableWidth - DocumentLayout.lineThickness),
         ],
       ),
     );

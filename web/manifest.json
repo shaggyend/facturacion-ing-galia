@@ -1,11 +1,11 @@
 {
-    "name": "facturacion_ing_galia",
-    "short_name": "facturacion_ing_galia",
+    "name": "Ingeniería Galia, c.a.",
+    "short_name": "Ing. Galia",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#2E3092",
+    "description": "Generador de presupuestos y facturas de Ingeniería Galia, c.a.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

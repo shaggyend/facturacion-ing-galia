@@ -38,6 +38,121 @@ class DocumentFormatters {
     return 'Caracas, $day de $month del $year';
   }
 
+  /// Parses dates like `Caracas, 14 de Noviembre del 2026`, `14/11/2026`, or
+  /// `2026-11-14`, returning `null` if the string cannot be interpreted.
+  static DateTime? tryParseCaracasDate(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+
+    final caracasPattern = RegExp(
+      r'^(?:Caracas\s*,?\s*)?(\d{1,2})\s+de\s+([A-Za-zÁÉÍÓÚáéíóúñÑ]+)\s+(?:del?|de)\s+(\d{4})$',
+      caseSensitive: false,
+    );
+    final match = caracasPattern.firstMatch(trimmed);
+    if (match != null) {
+      final day = int.tryParse(match.group(1)!);
+      final monthName = _normalizeMonthToken(match.group(2)!);
+      final year = int.tryParse(match.group(3)!);
+      final month = _monthIndexFromName(monthName);
+      if (day != null && month != null && year != null) {
+        return _validatedDate(year, month, day);
+      }
+    }
+
+    final dmyPattern = RegExp(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$');
+    final dmyMatch = dmyPattern.firstMatch(trimmed);
+    if (dmyMatch != null) {
+      final day = int.tryParse(dmyMatch.group(1)!);
+      final month = int.tryParse(dmyMatch.group(2)!);
+      final year = int.tryParse(dmyMatch.group(3)!);
+      if (day != null && month != null && year != null) {
+        return _validatedDate(year, month, day);
+      }
+    }
+
+    final isoPattern = RegExp(r'^(\d{4})-(\d{1,2})-(\d{1,2})');
+    final isoMatch = isoPattern.firstMatch(trimmed);
+    if (isoMatch != null) {
+      final year = int.tryParse(isoMatch.group(1)!);
+      final month = int.tryParse(isoMatch.group(2)!);
+      final day = int.tryParse(isoMatch.group(3)!);
+      if (day != null && month != null && year != null) {
+        return _validatedDate(year, month, day);
+      }
+    }
+
+    return null;
+  }
+
+  /// Formats a month header in Spanish, e.g., `Noviembre 2026`.
+  static String formatMonthYear(DateTime date) {
+    final month = _spanishMonths[date.month - 1];
+    return '$month ${date.year}';
+  }
+
+  /// Formats a compact calendar date as `DD/MM/YYYY`.
+  static String formatShortDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
+  /// Formats a numeric amount using Spanish grouping (`.` for thousands, `,`
+  /// for decimals) with an optional leading [prefix], e.g. `€ 1.250,50`.
+  static String formatSpanishAmount(double amount, {String prefix = ''}) {
+    final isNegative = amount < 0;
+    final absCents = (amount.abs() * 100).round();
+    final whole = (absCents ~/ 100).toString();
+    final decimals = (absCents % 100).toString().padLeft(2, '0');
+
+    final buffer = StringBuffer();
+    for (var i = 0; i < whole.length; i++) {
+      final posFromEnd = whole.length - i;
+      if (i > 0 && posFromEnd % 3 == 0) {
+        buffer.write('.');
+      }
+      buffer.write(whole[i]);
+    }
+
+    final sign = isNegative ? '-' : '';
+    final formatted = '$sign$buffer,$decimals';
+    return prefix.isEmpty ? formatted : '$prefix $formatted';
+  }
+
+  static String _normalizeMonthToken(String token) {
+    return token
+        .trim()
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u');
+  }
+
+  static int? _monthIndexFromName(String normalized) {
+    if (normalized == 'setiembre') return 9;
+    for (var i = 0; i < _spanishMonths.length; i++) {
+      if (_normalizeMonthToken(_spanishMonths[i]) == normalized) {
+        return i + 1;
+      }
+    }
+    return null;
+  }
+
+  static DateTime? _validatedDate(int year, int month, int day) {
+    if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1) {
+      return null;
+    }
+    final candidate = DateTime(year, month, day);
+    if (candidate.year != year ||
+        candidate.month != month ||
+        candidate.day != day) {
+      return null;
+    }
+    return candidate;
+  }
+
   /// Parses numeric user input accepting either `,` or `.` as decimal separator
   /// as well as optional thousands separators (e.g. `1.250,50` or `1,250.50`).
   static double parseFlexibleNumber(String raw) {
@@ -82,6 +197,16 @@ class DocumentFormatters {
       return 0.0;
     }
     return parsed < 0 ? 0.0 : parsed;
+  }
+
+  /// Parses an optional numeric input, returning `null` when the field is
+  /// blank or contains no digits so optional cells can remain empty.
+  static double? parseOptionalFlexibleNumber(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty || !RegExp(r'\d').hasMatch(trimmed)) {
+      return null;
+    }
+    return parseFlexibleNumber(trimmed);
   }
 
   /// Splits [amount] into an integer string (with dot thousands grouping if >= 1000)

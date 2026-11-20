@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:facturacion_ing_galia/core/company_constants.dart';
@@ -45,12 +46,14 @@ class BudgetItem {
     this.quantity = 1,
     this.description = '',
     this.unitPrice = 0,
+    this.bolivaresAmount,
   });
 
   final String id;
   final double quantity;
   final String description;
   final double unitPrice;
+  final double? bolivaresAmount;
 
   double get subtotal {
     final cents = (quantity * unitPrice * 100).round();
@@ -62,12 +65,37 @@ class BudgetItem {
     double? quantity,
     String? description,
     double? unitPrice,
+    double? bolivaresAmount,
+    bool clearBolivaresAmount = false,
   }) {
     return BudgetItem(
       id: id ?? this.id,
       quantity: quantity ?? this.quantity,
       description: description ?? this.description,
       unitPrice: unitPrice ?? this.unitPrice,
+      bolivaresAmount: clearBolivaresAmount
+          ? null
+          : (bolivaresAmount ?? this.bolivaresAmount),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'quantity': quantity,
+      'description': description,
+      'unitPrice': unitPrice,
+      'bolivaresAmount': bolivaresAmount,
+    };
+  }
+
+  factory BudgetItem.fromJson(Map<String, dynamic> json) {
+    return BudgetItem(
+      id: (json['id'] as String?) ?? '',
+      quantity: (json['quantity'] as num?)?.toDouble() ?? 1.0,
+      description: (json['description'] as String?) ?? '',
+      unitPrice: (json['unitPrice'] as num?)?.toDouble() ?? 0.0,
+      bolivaresAmount: (json['bolivaresAmount'] as num?)?.toDouble(),
     );
   }
 }
@@ -84,9 +112,11 @@ class BudgetDocument {
     required this.workTitle,
     required this.workDetails,
     required this.manualTotal,
+    this.manualBolivaresTotal,
     required this.items,
     required this.paymentTerms,
     required this.executionTime,
+    this.includeTaxNote = true,
     this.customLogoBytes,
   });
 
@@ -99,12 +129,14 @@ class BudgetDocument {
   final String workTitle;
   final String workDetails;
   final double manualTotal;
+  final double? manualBolivaresTotal;
   final List<BudgetItem> items;
   final String paymentTerms;
   final String executionTime;
+  final bool includeTaxNote;
   final Uint8List? customLogoBytes;
 
-  /// Effective total depending on the active work entry mode.
+  /// Effective total in the selected currency ($ or €) depending on the active mode.
   double get effectiveTotal {
     if (mode == WorkEntryMode.directTotal) {
       return manualTotal < 0 ? 0.0 : manualTotal;
@@ -114,6 +146,30 @@ class BudgetDocument {
       (sum, item) => sum + (item.subtotal * 100).round(),
     );
     return totalCents / 100.0;
+  }
+
+  /// Whether at least one line item specifies a Bolívares amount in Mode B.
+  bool get hasItemizedBolivares =>
+      items.any((item) => item.bolivaresAmount != null);
+
+  /// Optional total in Bolívares; returns `null` when left blank.
+  double? get effectiveBolivaresTotal {
+    if (mode == WorkEntryMode.directTotal) {
+      final bs = manualBolivaresTotal;
+      if (bs == null || bs < 0) return null;
+      return bs;
+    }
+    if (hasItemizedBolivares) {
+      final totalCents = items.fold<int>(0, (sum, item) {
+        final amount = item.bolivaresAmount;
+        if (amount == null || amount < 0) return sum;
+        return sum + (amount * 100).round();
+      });
+      return totalCents / 100.0;
+    }
+    final bs = manualBolivaresTotal;
+    if (bs == null || bs < 0) return null;
+    return bs;
   }
 
   /// Creates an initial document prefilled with today's Caracas date and standard terms.
@@ -134,6 +190,28 @@ class BudgetDocument {
       ],
       paymentTerms: CompanyConstants.defaultPaymentTerms,
       executionTime: CompanyConstants.defaultExecutionTime,
+    );
+  }
+
+  /// Creates a blank document with today's automatic date from the host clock.
+  factory BudgetDocument.empty({DateTime? now}) {
+    final currentDate = now ?? DateTime.now();
+    return BudgetDocument(
+      recipient: '',
+      dateText: DocumentFormatters.formatCaracasDate(currentDate),
+      documentType: DocumentTypeLabel.presupuesto,
+      documentNumber: '',
+      currency: CurrencyOption.euro,
+      mode: WorkEntryMode.directTotal,
+      workTitle: '',
+      workDetails: '',
+      manualTotal: 0.0,
+      items: const <BudgetItem>[
+        BudgetItem(id: 'item-1', quantity: 1, description: '', unitPrice: 0),
+      ],
+      paymentTerms: '',
+      executionTime: '',
+      includeTaxNote: true,
     );
   }
 
@@ -195,9 +273,12 @@ class BudgetDocument {
     String? workTitle,
     String? workDetails,
     double? manualTotal,
+    double? manualBolivaresTotal,
+    bool clearManualBolivaresTotal = false,
     List<BudgetItem>? items,
     String? paymentTerms,
     String? executionTime,
+    bool? includeTaxNote,
     Uint8List? customLogoBytes,
     bool clearCustomLogo = false,
   }) {
@@ -211,11 +292,102 @@ class BudgetDocument {
       workTitle: workTitle ?? this.workTitle,
       workDetails: workDetails ?? this.workDetails,
       manualTotal: manualTotal ?? this.manualTotal,
+      manualBolivaresTotal: clearManualBolivaresTotal
+          ? null
+          : (manualBolivaresTotal ?? this.manualBolivaresTotal),
       items: items ?? this.items,
       paymentTerms: paymentTerms ?? this.paymentTerms,
       executionTime: executionTime ?? this.executionTime,
+      includeTaxNote: includeTaxNote ?? this.includeTaxNote,
       customLogoBytes:
           clearCustomLogo ? null : (customLogoBytes ?? this.customLogoBytes),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'recipient': recipient,
+      'dateText': dateText,
+      'documentType': documentType.name,
+      'documentNumber': documentNumber,
+      'currency': currency.name,
+      'mode': mode.name,
+      'workTitle': workTitle,
+      'workDetails': workDetails,
+      'manualTotal': manualTotal,
+      'manualBolivaresTotal': manualBolivaresTotal,
+      'items': items.map((item) => item.toJson()).toList(),
+      'paymentTerms': paymentTerms,
+      'executionTime': executionTime,
+      'includeTaxNote': includeTaxNote,
+      'customLogoBase64':
+          customLogoBytes != null ? base64Encode(customLogoBytes!) : null,
+    };
+  }
+
+  factory BudgetDocument.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'];
+    final parsedItems = rawItems is List
+        ? rawItems
+            .whereType<Map>()
+            .map(
+              (entry) =>
+                  BudgetItem.fromJson(Map<String, dynamic>.from(entry)),
+            )
+            .toList()
+        : <BudgetItem>[];
+
+    return BudgetDocument(
+      recipient: (json['recipient'] as String?) ?? '',
+      dateText: (json['dateText'] as String?) ??
+          DocumentFormatters.formatCaracasDate(DateTime.now()),
+      documentType: _parseEnumByName(
+        DocumentTypeLabel.values,
+        json['documentType'],
+        DocumentTypeLabel.presupuesto,
+      ),
+      documentNumber: (json['documentNumber'] as String?) ?? '',
+      currency: _parseEnumByName(
+        CurrencyOption.values,
+        json['currency'],
+        CurrencyOption.euro,
+      ),
+      mode: _parseEnumByName(
+        WorkEntryMode.values,
+        json['mode'],
+        WorkEntryMode.directTotal,
+      ),
+      workTitle: (json['workTitle'] as String?) ?? '',
+      workDetails: (json['workDetails'] as String?) ?? '',
+      manualTotal: (json['manualTotal'] as num?)?.toDouble() ?? 0.0,
+      manualBolivaresTotal: (json['manualBolivaresTotal'] as num?)?.toDouble(),
+      items: parsedItems.isEmpty
+          ? const <BudgetItem>[BudgetItem(id: 'item-1')]
+          : parsedItems,
+      paymentTerms: (json['paymentTerms'] as String?) ??
+          CompanyConstants.defaultPaymentTerms,
+      executionTime: (json['executionTime'] as String?) ??
+          CompanyConstants.defaultExecutionTime,
+      includeTaxNote: (json['includeTaxNote'] as bool?) ?? true,
+      customLogoBytes: _decodeOptionalBase64(json['customLogoBase64']),
+    );
+  }
+}
+
+T _parseEnumByName<T extends Enum>(List<T> values, Object? raw, T fallback) {
+  if (raw is String) {
+    for (final value in values) {
+      if (value.name == raw) return value;
+    }
+  }
+  return fallback;
+}
+
+Uint8List? _decodeOptionalBase64(Object? raw) {
+  if (raw is! String || raw.trim().isEmpty) return null;
+  try {
+    return base64Decode(raw);
+  } catch (_) {
+    return null;
   }
 }

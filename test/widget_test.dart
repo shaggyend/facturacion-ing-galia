@@ -8,6 +8,7 @@ import 'package:facturacion_ing_galia/core/formatters.dart';
 import 'package:facturacion_ing_galia/main.dart';
 import 'package:facturacion_ing_galia/models/budget_document.dart';
 import 'package:facturacion_ing_galia/services/pdf_generator.dart';
+import 'package:facturacion_ing_galia/widgets/document_preview.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +32,13 @@ void main() {
       expect(DocumentFormatters.parseFlexibleNumber('1.250,75'), 1250.75);
       expect(DocumentFormatters.parseFlexibleNumber('1,250.75'), 1250.75);
       expect(DocumentFormatters.parseFlexibleNumber('abc'), 0.0);
+    });
+
+    test('parses optional numeric inputs returning null when blank', () {
+      expect(DocumentFormatters.parseOptionalFlexibleNumber(''), isNull);
+      expect(DocumentFormatters.parseOptionalFlexibleNumber('   '), isNull);
+      expect(DocumentFormatters.parseOptionalFlexibleNumber('abc'), isNull);
+      expect(DocumentFormatters.parseOptionalFlexibleNumber('12500,50'), 12500.5);
     });
 
     test('splits currency amount into integer and 2-digit decimal', () {
@@ -62,6 +70,30 @@ void main() {
         ],
       );
       expect(modeB.effectiveTotal, 241.0);
+      expect(modeA.effectiveBolivaresTotal, isNull);
+      expect(modeB.effectiveBolivaresTotal, isNull);
+
+      final modeAWithBs = modeA.copyWith(manualBolivaresTotal: 25000.75);
+      expect(modeAWithBs.effectiveBolivaresTotal, 25000.75);
+
+      final modeBWithItemBs = modeB.copyWith(
+        items: const <BudgetItem>[
+          BudgetItem(
+            id: '1',
+            quantity: 2,
+            description: 'Rolinera',
+            unitPrice: 45.5,
+            bolivaresAmount: 4550.25,
+          ),
+          BudgetItem(
+            id: '2',
+            quantity: 1.5,
+            description: 'Mano de obra',
+            unitPrice: 100,
+          ),
+        ],
+      );
+      expect(modeBWithItemBs.effectiveBolivaresTotal, 4550.25);
     });
   });
 
@@ -82,6 +114,14 @@ void main() {
       final doc = BudgetDocument.sampleBomba().copyWith(
         mode: WorkEntryMode.itemized,
         currency: CurrencyOption.dollar,
+      );
+      final bytes = await BudgetPdfGenerator.generatePdf(doc);
+      expect(isPdfHeader(bytes), isTrue);
+    });
+
+    test('generates Mode A Euro PDF with optional Bolivares filled', () async {
+      final doc = BudgetDocument.sampleBomba().copyWith(
+        manualBolivaresTotal: 32500.50,
       );
       final bytes = await BudgetPdfGenerator.generatePdf(doc);
       expect(isPdfHeader(bytes), isTrue);
@@ -117,8 +157,75 @@ void main() {
 
       expect(find.text(CompanyConstants.companyName), findsOneWidget);
       expect(find.text(CompanyConstants.companyRif), findsOneWidget);
-      expect(find.text('475'), findsOneWidget);
-      expect(find.text('00'), findsOneWidget);
+      expect(find.text('Ejemplo'), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(DocumentPreview),
+          matching: find.text('BOLIVARES'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(DocumentPreview),
+          matching: find.text('TOTAL (€)'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(DocumentPreview),
+          matching: find.text(CompanyConstants.taxNote),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(DocumentPreview),
+          matching: find.text('0'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(DocumentPreview),
+          matching: find.text('00'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('En blanco'), findsOneWidget);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Monto Total Directo (€)'),
+        '475,00',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Precio en Bolívares (opcional)'),
+        '25400,50',
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byType(DocumentPreview),
+          matching: find.text('475'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(DocumentPreview),
+          matching: find.text('25.400'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(DocumentPreview),
+          matching: find.text('50'),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders mobile tabs and switches to Mode B', (tester) async {
@@ -132,6 +239,8 @@ void main() {
       expect(find.text('Formulario'), findsOneWidget);
       expect(find.text('Vista Previa'), findsOneWidget);
 
+      await tester.ensureVisible(find.text('Modo B: Por ítems'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Modo B: Por ítems'));
       await tester.pumpAndSettle();
 
@@ -151,8 +260,11 @@ void main() {
       await tester.pumpWidget(const IngenieriaGaliaApp());
       await tester.pumpAndSettle();
 
-      expect(find.text('Ejemplo'), findsOneWidget);
-      expect(find.text('Nuevo'), findsOneWidget);
+      expect(find.text('Ejemplo'), findsNothing);
+      expect(find.text('Cotización Nueva'), findsOneWidget);
+      expect(find.text('Guardar'), findsOneWidget);
+      expect(find.text('Vista PDF'), findsNothing);
+      expect(find.text('Imprimir'), findsNothing);
     });
   });
 }

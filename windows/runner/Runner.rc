@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.ingenieriagalia" "\0"
-            VALUE "FileDescription", "facturacion_ing_galia" "\0"
+            VALUE "CompanyName", "Ingenieria Galia, c.a." "\0"
+            VALUE "FileDescription", "Sistema de Presupuestos y Facturas - Ingenieria Galia, c.a." "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "facturacion_ing_galia" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.ingenieriagalia. All rights reserved." "\0"
-            VALUE "OriginalFilename", "facturacion_ing_galia.exe" "\0"
-            VALUE "ProductName", "facturacion_ing_galia" "\0"
+            VALUE "InternalName", "IngenieriaGalia_Facturacion" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Ingenieria Galia, c.a." "\0"
+            VALUE "OriginalFilename", "IngenieriaGalia_Facturacion.exe" "\0"
+            VALUE "ProductName", "Ingenieria Galia - Facturacion" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

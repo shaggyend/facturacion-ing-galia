@@ -12,18 +12,22 @@ class _ItemFieldControllers {
     required String quantityText,
     required String descriptionText,
     required String unitPriceText,
+    required String bolivaresText,
   })  : quantity = TextEditingController(text: quantityText),
         description = TextEditingController(text: descriptionText),
-        unitPrice = TextEditingController(text: unitPriceText);
+        unitPrice = TextEditingController(text: unitPriceText),
+        bolivares = TextEditingController(text: bolivaresText);
 
   final TextEditingController quantity;
   final TextEditingController description;
   final TextEditingController unitPrice;
+  final TextEditingController bolivares;
 
   void dispose() {
     quantity.dispose();
     description.dispose();
     unitPrice.dispose();
+    bolivares.dispose();
   }
 }
 
@@ -51,6 +55,7 @@ class _BudgetFormState extends State<BudgetForm> {
   late final TextEditingController _workTitleCtrl;
   late final TextEditingController _workDetailsCtrl;
   late final TextEditingController _manualTotalCtrl;
+  late final TextEditingController _manualBolivaresCtrl;
   late final TextEditingController _paymentTermsCtrl;
   late final TextEditingController _executionTimeCtrl;
 
@@ -71,6 +76,9 @@ class _BudgetFormState extends State<BudgetForm> {
     _manualTotalCtrl = TextEditingController(
       text: _formatEditableAmount(doc.manualTotal),
     );
+    _manualBolivaresCtrl = TextEditingController(
+      text: _formatOptionalEditableAmount(doc.manualBolivaresTotal),
+    );
     _paymentTermsCtrl = TextEditingController(text: doc.paymentTerms);
     _executionTimeCtrl = TextEditingController(text: doc.executionTime);
     _syncItemControllers(doc.items, forceReset: true);
@@ -87,6 +95,8 @@ class _BudgetFormState extends State<BudgetForm> {
       _workTitleCtrl.text = doc.workTitle;
       _workDetailsCtrl.text = doc.workDetails;
       _manualTotalCtrl.text = _formatEditableAmount(doc.manualTotal);
+      _manualBolivaresCtrl.text =
+          _formatOptionalEditableAmount(doc.manualBolivaresTotal);
       _paymentTermsCtrl.text = doc.paymentTerms;
       _executionTimeCtrl.text = doc.executionTime;
       _syncItemControllers(doc.items, forceReset: true);
@@ -103,6 +113,7 @@ class _BudgetFormState extends State<BudgetForm> {
     _workTitleCtrl.dispose();
     _workDetailsCtrl.dispose();
     _manualTotalCtrl.dispose();
+    _manualBolivaresCtrl.dispose();
     _paymentTermsCtrl.dispose();
     _executionTimeCtrl.dispose();
     for (final c in _itemCtrls.values) {
@@ -129,18 +140,26 @@ class _BudgetFormState extends State<BudgetForm> {
           quantityText: DocumentFormatters.formatQuantity(item.quantity),
           descriptionText: item.description,
           unitPriceText: _formatEditableAmount(item.unitPrice),
+          bolivaresText: _formatOptionalEditableAmount(item.bolivaresAmount),
         );
       } else if (forceReset) {
         existing.quantity.text =
             DocumentFormatters.formatQuantity(item.quantity);
         existing.description.text = item.description;
         existing.unitPrice.text = _formatEditableAmount(item.unitPrice);
+        existing.bolivares.text =
+            _formatOptionalEditableAmount(item.bolivaresAmount);
       }
     }
   }
 
   String _formatEditableAmount(double amount) {
     if (amount <= 0) return '';
+    return DocumentFormatters.splitCurrencyAmount(amount).formattedWithComma;
+  }
+
+  String _formatOptionalEditableAmount(double? amount) {
+    if (amount == null || amount < 0) return '';
     return DocumentFormatters.splitCurrencyAmount(amount).formattedWithComma;
   }
 
@@ -210,6 +229,10 @@ class _BudgetFormState extends State<BudgetForm> {
   Widget build(BuildContext context) {
     final doc = widget.document;
     final splitTotal = DocumentFormatters.splitCurrencyAmount(doc.effectiveTotal);
+    final bsTotal = doc.effectiveBolivaresTotal;
+    final splitBsTotal = bsTotal != null
+        ? DocumentFormatters.splitCurrencyAmount(bsTotal)
+        : null;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -254,7 +277,7 @@ class _BudgetFormState extends State<BudgetForm> {
                       controller: _numberCtrl,
                       decoration: InputDecoration(
                         labelText: doc.documentType.documentTitle,
-                        hintText: 'Ej: 2026-0094',
+                        hintText: '0000-0000',
                         prefixIcon: const Icon(Icons.tag),
                       ),
                       onChanged: (value) {
@@ -328,7 +351,7 @@ class _BudgetFormState extends State<BudgetForm> {
             textCapitalization: TextCapitalization.characters,
             decoration: const InputDecoration(
               hintText:
-                  'JUNTA DE CONDOMINIO\nRES. ORLANDO\nURB. LA CANDELARIA\nPRESENTE.-',
+                  'Nombre o razón social\nDirección / Urbanización\nCiudad',
               alignLabelWithHint: true,
             ),
             onChanged: (value) {
@@ -369,7 +392,7 @@ class _BudgetFormState extends State<BudgetForm> {
                   labelText: doc.mode == WorkEntryMode.directTotal
                       ? 'Título del trabajo'
                       : 'Título general (opcional)',
-                  hintText: 'Ej: TRABAJO EN BOMBA DE AGUA',
+                  hintText: 'Descripción general o título del servicio',
                 ),
                 onChanged: (value) {
                   widget.onChanged(doc.copyWith(workTitle: value));
@@ -392,27 +415,63 @@ class _BudgetFormState extends State<BudgetForm> {
                         .withValues(alpha: 0.25),
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Expanded(
-                      child: Text(
-                        'TOTAL CALCULADO',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: CompanyConstants.headerBlueColor,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'TOTAL (${doc.currency.symbol})',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: CompanyConstants.headerBlueColor,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${doc.currency.symbol} ${splitTotal.formattedWithComma}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: CompanyConstants.headerBlueColor,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${doc.currency.symbol} ${splitTotal.formattedWithComma}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        color: CompanyConstants.headerBlueColor,
-                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'PRECIO EN BOLÍVARES',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                              color: Color(0xFF4B5565),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          splitBsTotal != null
+                              ? 'Bs. ${splitBsTotal.formattedWithComma}'
+                              : 'En blanco',
+                          style: TextStyle(
+                            fontWeight: splitBsTotal != null
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            fontSize: 13,
+                            color: splitBsTotal != null
+                                ? CompanyConstants.inkBlack
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -449,20 +508,52 @@ class _BudgetFormState extends State<BudgetForm> {
                   widget.onChanged(doc.copyWith(executionTime: value));
                 },
               ),
-              const SizedBox(height: 10),
-              Row(
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Nota "${CompanyConstants.taxNote}"',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Nota fija en plantilla: "${CompanyConstants.taxNote}"',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                  SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment<bool>(
+                        value: true,
+                        label: Text('Sí'),
+                      ),
+                      ButtonSegment<bool>(
+                        value: false,
+                        label: Text('No'),
+                      ),
+                    ],
+                    selected: <bool>{doc.includeTaxNote},
+                    onSelectionChanged: (selection) {
+                      if (selection.isEmpty) return;
+                      widget.onChanged(
+                        doc.copyWith(includeTaxNote: selection.first),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -493,8 +584,7 @@ class _BudgetFormState extends State<BudgetForm> {
         maxLines: 12,
         decoration: const InputDecoration(
           labelText: 'Detalle de tareas realizadas',
-          hintText:
-              'Desarmar bomba en sitio\nRectificacion de Impulsor...\nArmar bomba en sitio',
+          hintText: 'Detalle línea por línea de las actividades o trabajos',
           alignLabelWithHint: true,
         ),
         onChanged: (value) {
@@ -507,12 +597,30 @@ class _BudgetFormState extends State<BudgetForm> {
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
           labelText: 'Monto Total Directo (${doc.currency.symbol})',
-          hintText: 'Ej: 475,00',
+          hintText: '0,00',
           prefixText: '${doc.currency.symbol} ',
         ),
         onChanged: (value) {
           final parsed = DocumentFormatters.parseFlexibleNumber(value);
           widget.onChanged(doc.copyWith(manualTotal: parsed));
+        },
+      ),
+      const SizedBox(height: 12),
+      TextFormField(
+        controller: _manualBolivaresCtrl,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(
+          labelText: 'Precio en Bolívares (opcional)',
+          hintText: 'Dejar vacío para mantener en blanco',
+          prefixText: 'Bs. ',
+        ),
+        onChanged: (value) {
+          final parsed = DocumentFormatters.parseOptionalFlexibleNumber(value);
+          widget.onChanged(
+            parsed == null
+                ? doc.copyWith(clearManualBolivaresTotal: true)
+                : doc.copyWith(manualBolivaresTotal: parsed),
+          );
         },
       ),
     ];
@@ -536,6 +644,27 @@ class _BudgetFormState extends State<BudgetForm> {
         icon: const Icon(Icons.add),
         label: const Text('Agregar ítem'),
       ),
+      if (!doc.hasItemizedBolivares) ...[
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _manualBolivaresCtrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Total en Bolívares (opcional)',
+            hintText: 'Dejar vacío para mantener en blanco',
+            prefixText: 'Bs. ',
+          ),
+          onChanged: (value) {
+            final parsed =
+                DocumentFormatters.parseOptionalFlexibleNumber(value);
+            widget.onChanged(
+              parsed == null
+                  ? doc.copyWith(clearManualBolivaresTotal: true)
+                  : doc.copyWith(manualBolivaresTotal: parsed),
+            );
+          },
+        ),
+      ],
     ];
   }
 }
@@ -709,6 +838,25 @@ class _ItemEditorCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: controllers.bolivares,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Bolívares (opcional)',
+              hintText: 'En blanco si no aplica',
+              prefixText: 'Bs. ',
+              isDense: true,
+            ),
+            onChanged: (val) {
+              final bs = DocumentFormatters.parseOptionalFlexibleNumber(val);
+              onChanged(
+                bs == null
+                    ? item.copyWith(clearBolivaresAmount: true)
+                    : item.copyWith(bolivaresAmount: bs),
+              );
+            },
           ),
         ],
       ),
